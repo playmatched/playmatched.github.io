@@ -220,7 +220,7 @@ select option { background:#3d7a1e; color:white; }
   </div>
   <div class="card">
     <label class="lbl">Clubhouse Code</label>
-    <input type="text" id="joinCode" placeholder="e.g. MatchedAB12CD34" maxlength="15" style="text-transform:uppercase;letter-spacing:2px">
+    <input type="text" id="joinCode" placeholder="e.g. MatchedAB12CD34" maxlength="15" style="letter-spacing:2px">
     <button class="btn btn-primary" onclick="joinClubhouse()">Find Clubhouse →</button>
   </div>
 </div>
@@ -535,7 +535,7 @@ window.shareInvite = function() {
 
 // JOIN
 window.joinClubhouse = function() {
-  const code = document.getElementById('joinCode').value.trim().toUpperCase();
+  const code = document.getElementById('joinCode').value.trim();
   if (!code) { toast('Please enter a code'); return; }
   const {db,ref,get} = window._db;
   get(ref(db, `matched/clubs/${code}`)).then(snap => {
@@ -729,7 +729,7 @@ function updateDots() {
 function checkPin() {
   const {db,ref,get} = window._db;
   get(ref(db,'matched/adminPin')).then(snap => {
-    const correct = snap.exists() ? snap.val() : '123456';
+    const correct = snap.exists() ? String(snap.val()) : '123456';
     if (S.pin===correct) {
       closeModal('modal-pin');
       renderAdmin();
