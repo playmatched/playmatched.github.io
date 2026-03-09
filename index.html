@@ -1197,17 +1197,14 @@ function renderLeaderboard(members) {
         <div class="lb-name">${e.name}${e.uid === state.userId ? ' (You)' : ''}</div>
         <div class="lb-team">${e.team}</div>
       </div>
-      <div clard-name">${player ? player.name : pid}</div>
-        <div class="squad-card-team">${player ? player.team : ''}</div>
-        <div class="squad-card-pts">${score.toFixed(1)}</div>
-      </div>
-    `;
-  }).join('');
+      <div class="lb-score">${e.score.toFixed(1)}</div>
+    </div>
+  `).join('');
 }
 
 // ─── SHARE ───
 window.shareCircle = function() {
-  const text = `Join my Cricket Squad circle!\n\nCircle: ${state.circleName}\nCode: ${state.circleCode}\n\nOpen: https://playmatched.github.io\n\nFamily. Friends. Cricket. 🏏`;
+  const text = `Join my Matched Clubhouse!\n\nClubhouse: ${state.circleName}\nCode: ${state.circleCode}\n\nPlay IPL 2026 with your people\nhttps://playmatched.github.io\n\nNo money. No registration.`;
   if (navigator.share) {
     navigator.share({ title: 'Matched', text });
   } else {
