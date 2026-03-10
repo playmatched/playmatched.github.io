@@ -132,15 +132,16 @@ select option { background:#3d7a1e; color:white; }
 .footer { text-align:center; padding:24px; font-size:11px; color:var(--w60); letter-spacing:1px; }
 ::-webkit-scrollbar { width:4px; }
 ::-webkit-scrollbar-thumb { background:var(--w20); border-radius:2px; }
+.club-card { background:rgba(0,0,0,0.3); backdrop-filter:blur(10px); border:1px solid var(--w20); border-radius:var(--r); padding:20px; margin:0 16px 12px; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; justify-content:space-between; }
+.club-card:hover { background:rgba(0,0,0,0.4); transform:translateY(-1px); }
+.club-card-name { font-family:'Abril Fatface',cursive; font-size:18px; margin-bottom:4px; }
+.club-card-meta { font-size:11px; color:var(--w60); letter-spacing:1px; }
+.club-card-arrow { font-size:20px; color:var(--w60); }
+.btn-danger { background:rgba(220,50,50,0.2); color:#ff6b6b; border:1px solid rgba(220,50,50,0.4); }
+.btn-danger:hover { background:rgba(220,50,50,0.35); }
 </style>
 </head>
 <body>
-
-<!-- SPLASH -->
-<div class="loader" id="loader">
-  <div class="loader-text">Matched</div>
-  <div class="loader-sub">Family. Friends. Cricket.</div>
-</div>
 
 <!-- NAV -->
 <nav class="nav" id="mainNav" style="display:none">
@@ -148,24 +149,22 @@ select option { background:#3d7a1e; color:white; }
     <span class="logo-text">Matched</span>
     <span class="logo-sub">Family. Friends. Cricket.</span>
   </div>
-  <div id="navRight"></div>
+  <button onclick="goHome()" style="background:var(--w10);border:1px solid var(--w20);color:white;padding:8px 14px;border-radius:20px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">← All Clubhouses</button>
 </nav>
 
-<!-- WELCOME -->
-<div class="screen" id="screen-welcome">
-  <div class="hero">
+<!-- MY CLUBHOUSES (home screen) -->
+<div class="screen" id="screen-home">
+  <div class="hero" style="padding-bottom:24px">
     <h1>Matched</h1>
     <p>Family. Friends. Cricket.</p>
   </div>
-  <div class="card">
-    <button class="btn btn-primary" style="margin-bottom:12px" onclick="go('screen-create')">Create a Clubhouse</button>
-    <p style="font-size:12px;color:var(--w60);text-align:center;margin-bottom:16px">Start your own private space for your people</p>
-    <div style="height:1px;background:var(--w20);margin-bottom:16px"></div>
-    <button class="btn btn-secondary" onclick="go('screen-join')">Join a Clubhouse</button>
-    <p style="font-size:12px;color:var(--w60);text-align:center;margin-top:12px">Enter a code to join someone's clubhouse</p>
+  <div style="padding:0 16px 12px">
+    <button class="btn btn-primary" style="margin-bottom:10px" onclick="go('screen-create')">+ Create a Clubhouse</button>
+    <button class="btn btn-secondary" onclick="go('screen-join')">+ Join a Clubhouse</button>
   </div>
-  <div style="text-align:center;padding:0 24px 24px">
-    <p style="font-size:12px;color:var(--w60);line-height:1.8">Pick 11 players · Beat your people<br>No money. No registration. Ever.</p>
+  <div style="padding:20px 16px 8px;font-size:11px;color:var(--w60);letter-spacing:2px;text-transform:uppercase">My Clubhouses</div>
+  <div id="myClubsList">
+    <div style="text-align:center;padding:32px 24px;color:var(--w60);font-size:13px">No clubhouses yet.<br>Create or join one above!</div>
   </div>
   <div class="footer">Created by Abhishek Sarkar · abhishek.stat.iitk@gmail.com</div>
 </div>
@@ -339,6 +338,9 @@ select option { background:#3d7a1e; color:white; }
     </select>
     <div id="admList"></div>
     <button class="btn btn-primary" style="margin-top:12px" onclick="saveStats()">Save Stats</button>
+    <div style="height:1px;background:var(--w20);margin:20px 0"></div>
+    <button class="btn btn-danger" onclick="confirmReset()">Reset All Stats to Zero</button>
+    <p style="font-size:11px;color:var(--w60);text-align:center;margin-top:8px">Clears all player stats. Cannot be undone.</p>
   </div>
 </div>
 
@@ -346,7 +348,7 @@ select option { background:#3d7a1e; color:white; }
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, set, get, onValue, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, set, get, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const app = initializeApp({
   apiKey:"AIzaSyD0PS3l42offWYYS7r_hhS1_PQSw5z-TOc",
@@ -358,7 +360,7 @@ const app = initializeApp({
   appId:"1:50592650535:web:2e7f912909a2d5ca7d8502"
 });
 const db = getDatabase(app);
-window._db = {db, ref, set, get, onValue, update};
+window._db = {db, ref, set, get, onValue, update, remove};
 
 const PLAYERS = [
   {id:'ms-dhoni',name:'MS Dhoni',team:'CSK',role:'WK'},
@@ -464,47 +466,97 @@ const PLAYERS = [
 ];
 window.PLAYERS = PLAYERS;
 
+// ─── STATE ───
+// S.clubs = [{code, name, squad:[], locked:false}]
+// S.activeCode = currently viewed clubhouse code
 const S = {
-  uid: null, name: '', code: '', clubName: '',
-  squad: [], locked: false,
-  stats: {}, logoTaps: 0, pin: ''
+  uid: null,
+  name: '',
+  clubs: [],       // all clubhouses this user belongs to
+  activeCode: '',  // currently open clubhouse
+  stats: {},
+  logoTaps: 0,
+  pin: ''
 };
 
-// INIT
+// Helpers to get/set clubs list in localStorage
+function saveClubs() { localStorage.setItem('m_clubs', JSON.stringify(S.clubs)); }
+function loadClubsFromStorage() {
+  const raw = localStorage.getItem('m_clubs');
+  if (raw) { S.clubs = JSON.parse(raw); return; }
+  // Migrate old single-clubhouse format
+  const oldCode = localStorage.getItem('m_code');
+  const oldName = localStorage.getItem('m_club');
+  const oldSquad = localStorage.getItem('m_squad');
+  if (oldCode && oldName) {
+    S.clubs = [{
+      code: oldCode, name: oldName,
+      squad: oldSquad ? JSON.parse(oldSquad) : [],
+      locked: !!oldSquad
+    }];
+    saveClubs();
+  } else {
+    S.clubs = [];
+  }
+}
+function getActiveClub() { return S.clubs.find(c => c.code === S.activeCode) || null; }
+
+// ─── INIT ───
 window.addEventListener('DOMContentLoaded', () => {
   let uid = localStorage.getItem('m_uid');
   if (!uid) { uid = 'u_' + Math.random().toString(36).substr(2,9); localStorage.setItem('m_uid', uid); }
   S.uid = uid;
+  S.name = localStorage.getItem('m_name') || '';
+  loadClubsFromStorage();
+  loadStats();
 
-  setTimeout(() => {
-    document.getElementById('loader').classList.add('hidden');
-    const code = localStorage.getItem('m_code');
-    const name = localStorage.getItem('m_name');
-    const squad = localStorage.getItem('m_squad');
-    if (code && name) {
-      S.code = code; S.name = name;
-      S.clubName = localStorage.getItem('m_club') || code;
-      if (squad) { S.squad = JSON.parse(squad); S.locked = true; }
-      document.getElementById('mainNav').style.display = 'flex';
-      openDash();
-    } else {
-      go('screen-welcome');
-    }
-  }, 2800);
+  renderHome();
+  go('screen-home');
 });
 
-// NAVIGATION
+// ─── NAVIGATION ───
 function go(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   window.scrollTo(0,0);
-  const noNav = ['screen-welcome','screen-create','screen-join','screen-sharecode','screen-name'];
-  document.getElementById('mainNav').style.display = noNav.includes(id) ? 'none' : 'flex';
+  const showNav = ['screen-dashboard'];
+  document.getElementById('mainNav').style.display = showNav.includes(id) ? 'flex' : 'none';
 }
 window.go = go;
-window.showScreen = go;
 
-// GENERATE CODE
+// ─── GO HOME ───
+window.goHome = function() {
+  renderHome();
+  go('screen-home');
+};
+
+// ─── HOME SCREEN ───
+function renderHome() {
+  const el = document.getElementById('myClubsList');
+  if (S.clubs.length === 0) {
+    el.innerHTML = `<div style="text-align:center;padding:32px 0;color:var(--w60);font-size:13px">No clubhouses yet. Create or join one!</div>`;
+    return;
+  }
+  el.innerHTML = S.clubs.map(c => {
+    const squadStatus = c.locked ? '🔒 Squad locked' : `${c.squad.length}/11 players picked`;
+    return `<div class="club-card" onclick="enterClubhouse('${c.code}')">
+      <div>
+        <div class="club-card-name">${c.name}</div>
+        <div class="club-card-meta">${c.code} · ${squadStatus}</div>
+      </div>
+      <div class="club-card-arrow">›</div>
+    </div>`;
+  }).join('');
+}
+window.renderHome = renderHome;
+
+// ─── ENTER A CLUBHOUSE ───
+window.enterClubhouse = function(code) {
+  S.activeCode = code;
+  openDash();
+};
+
+// ─── GENERATE CODE ───
 function genCode() {
   const c = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let r = '';
@@ -512,77 +564,124 @@ function genCode() {
   return 'Matched' + r;
 }
 
-// CREATE
+// ─── CREATE CLUBHOUSE ───
 window.createClubhouse = function() {
   const name = document.getElementById('createName').value.trim();
   if (!name) { toast('Please enter a clubhouse name'); return; }
+  if (!S.name) { go('screen-name'); localStorage.setItem('m_pending_create_name', name); return; }
   const code = genCode();
-  S.code = code; S.clubName = name;
-  localStorage.setItem('m_code', code);
-  localStorage.setItem('m_club', name);
   const {db,ref,set} = window._db;
   set(ref(db, `matched/clubs/${code}`), {name, by: S.uid, at: Date.now()});
+  set(ref(db, `matched/clubs/${code}/members/${S.uid}`), {name: S.name, at: Date.now(), squad: []});
+  S.clubs.push({code, name, squad:[], locked:false});
+  saveClubs();
   document.getElementById('displayCode').textContent = code;
+  S.activeCode = code;
   go('screen-sharecode');
 };
 
-// SHARE INVITE
+// ─── SHARE INVITE ───
 window.shareInvite = function() {
-  const txt = `Join my IPL 2026 Clubhouse on Matched!\n\nClubhouse: ${S.clubName}\nCode: ${S.code}\n\nhttps://playmatched.github.io\n\nNo money. No registration. Just cricket.`;
+  const club = getActiveClub();
+  const txt = `Join my IPL 2026 Clubhouse on Matched!\n\nClubhouse: ${club.name}\nCode: ${club.code}\n\nhttps://playmatched.github.io\n\nNo money. No registration. Just cricket.`;
   if (navigator.share) navigator.share({title:'Matched — Join my Clubhouse', text:txt});
   else navigator.clipboard.writeText(txt).then(() => toast('Invite copied!'));
 };
 
-// JOIN
+// ─── JOIN CLUBHOUSE ───
 window.joinClubhouse = function() {
   const code = document.getElementById('joinCode').value.trim();
   if (!code) { toast('Please enter a code'); return; }
+  if (S.clubs.find(c => c.code === code)) { toast('You already belong to this clubhouse!'); return; }
   const {db,ref,get} = window._db;
   get(ref(db, `matched/clubs/${code}`)).then(snap => {
     if (snap.exists()) {
-      S.code = code; S.clubName = snap.val().name;
-      localStorage.setItem('m_code', code);
-      localStorage.setItem('m_club', S.clubName);
-      go('screen-name');
+      const name = snap.val().name;
+      S.clubs.push({code, name, squad:[], locked:false});
+      saveClubs();
+      S.activeCode = code;
+      if (!S.name) { localStorage.setItem('m_pending_join', code); go('screen-name'); return; }
+      const {db,ref,set} = window._db;
+      set(ref(db, `matched/clubs/${code}/members/${S.uid}`), {name: S.name, at: Date.now(), squad: []});
+      renderHome();
+      go('screen-home');
+      toast(`Joined ${name}!`);
     } else { toast('Clubhouse not found. Check the code!'); }
   });
 };
 
-// SAVE NAME
+// ─── SAVE NAME ───
 window.saveName = function() {
   const name = document.getElementById('nameInput').value.trim();
   if (!name) { toast('Please enter your name'); return; }
   S.name = name;
   localStorage.setItem('m_name', name);
-  const {db,ref,set} = window._db;
-  set(ref(db, `matched/clubs/${S.code}/members/${S.uid}`), {name, at: Date.now(), squad: S.squad});
-  document.getElementById('mainNav').style.display = 'flex';
-  openDash();
+
+  // Handle pending create
+  const pendingCreate = localStorage.getItem('m_pending_create_name');
+  if (pendingCreate) {
+    localStorage.removeItem('m_pending_create_name');
+    document.getElementById('createName').value = pendingCreate;
+    window.createClubhouse();
+    return;
+  }
+
+  // Handle pending join
+  const pendingJoin = localStorage.getItem('m_pending_join');
+  if (pendingJoin) {
+    localStorage.removeItem('m_pending_join');
+    const club = S.clubs.find(c => c.code === pendingJoin);
+    if (club) {
+      const {db,ref,set} = window._db;
+      set(ref(db, `matched/clubs/${pendingJoin}/members/${S.uid}`), {name, at: Date.now(), squad: []});
+      S.activeCode = pendingJoin;
+      openDash();
+      return;
+    }
+  }
+
+  // Normal first-time name entry after create flow
+  const club = getActiveClub();
+  if (club) {
+    const {db,ref,set} = window._db;
+    set(ref(db, `matched/clubs/${club.code}/members/${S.uid}`), {name, at: Date.now(), squad: club.squad});
+    openDash();
+  } else {
+    renderHome();
+    go('screen-home');
+  }
 };
 
-// OPEN DASHBOARD
+// ─── OPEN DASHBOARD ───
 function openDash() {
+  const club = getActiveClub();
+  if (!club) { go('screen-home'); return; }
   go('screen-dashboard');
-  document.getElementById('dashName').textContent = S.clubName;
-  document.getElementById('dashSub').textContent = `${S.name} · ${S.code}`;
-  if (S.locked) showSquad(); else showSelector();
-  loadStats();
+  document.getElementById('dashName').textContent = club.name;
+  document.getElementById('dashSub').textContent = `${S.name} · ${club.code}`;
+  // reset tab to squad
+  switchTab('squad');
+  if (club.locked) showSquad(); else showSelector();
   loadLb();
 }
 window.openDash = openDash;
 
-// LOAD STATS (live)
+// ─── LOAD STATS (live, global) ───
 function loadStats() {
   const {db,ref,onValue} = window._db;
   onValue(ref(db,'matched/stats'), snap => {
     S.stats = snap.exists() ? snap.val() : {};
-    updateScore();
-    loadLb();
-    if (S.locked) showSquad();
+    // refresh dashboard if open
+    const club = getActiveClub();
+    if (club) {
+      updateScore();
+      if (club.locked) showSquad();
+    }
+    renderHome(); // refresh squad status on home
   });
 }
 
-// SCORE CALC
+// ─── SCORE CALC ───
 function calcScore(ids) {
   return ids.reduce((tot, pid) => {
     const s = S.stats[pid];
@@ -594,13 +693,17 @@ function calcScore(ids) {
 }
 
 function updateScore() {
-  document.getElementById('myScore').textContent = calcScore(S.squad).toFixed(1);
+  const club = getActiveClub();
+  if (!club) return;
+  document.getElementById('myScore').textContent = calcScore(club.squad).toFixed(1);
 }
 
-// LEADERBOARD
+// ─── LEADERBOARD ───
 function loadLb() {
+  const club = getActiveClub();
+  if (!club) return;
   const {db,ref,onValue} = window._db;
-  onValue(ref(db,`matched/clubs/${S.code}/members`), snap => {
+  onValue(ref(db,`matched/clubs/${club.code}/members`), snap => {
     const members = snap.exists() ? snap.val() : {};
     const entries = Object.entries(members)
       .map(([uid,m]) => ({uid, name:m.name, score: m.squad ? calcScore(m.squad) : 0}))
@@ -608,7 +711,7 @@ function loadLb() {
     const myIdx = entries.findIndex(e => e.uid === S.uid);
     document.getElementById('myRank').textContent = myIdx >= 0 ? '#'+(myIdx+1) : '#—';
     document.getElementById('topScore').textContent = entries[0] ? entries[0].score.toFixed(1) : '0';
-    document.getElementById('myScore').textContent = calcScore(S.squad).toFixed(1);
+    updateScore();
     document.getElementById('lbList').innerHTML = entries.map((e,i) => `
       <div class="lb-row ${e.uid===S.uid?'you':''}">
         <div class="lb-rank">${i===0?'🏆':i===1?'🥈':i===2?'🥉':i+1}</div>
@@ -618,39 +721,46 @@ function loadLb() {
   });
 }
 
-// PLAYER SELECTION
+// ─── PLAYER SELECTION ───
 window.loadTeam = function() {
+  const club = getActiveClub();
+  if (!club) return;
   const team = document.getElementById('teamDrop').value;
   const list = document.getElementById('plList');
   if (!team) { list.innerHTML=''; return; }
   list.innerHTML = PLAYERS.filter(p => p.team===team).map(p => {
-    const sel = S.squad.includes(p.id);
-    const dis = !sel && S.squad.length >= 11;
+    const sel = club.squad.includes(p.id);
+    const dis = !sel && club.squad.length >= 11;
     return `<div class="pl-row ${sel?'selected':''} ${dis?'disabled':''}" onclick="togglePl('${p.id}')">
       <div><div class="pl-name">${p.name}</div><div class="pl-meta">${p.team} · ${p.role}</div></div>
       <div class="pl-check">${sel?'✓':''}</div>
     </div>`;
   }).join('');
-  document.getElementById('selCount').textContent = S.squad.length;
-  document.getElementById('lockBtn').disabled = S.squad.length !== 11;
+  document.getElementById('selCount').textContent = club.squad.length;
+  document.getElementById('lockBtn').disabled = club.squad.length !== 11;
 };
 
 window.togglePl = function(pid) {
-  const i = S.squad.indexOf(pid);
-  if (i >= 0) S.squad.splice(i,1);
+  const club = getActiveClub();
+  if (!club) return;
+  const i = club.squad.indexOf(pid);
+  if (i >= 0) club.squad.splice(i,1);
   else {
-    if (S.squad.length >= 11) { toast('You can only pick 11 players'); return; }
-    S.squad.push(pid);
+    if (club.squad.length >= 11) { toast('You can only pick 11 players'); return; }
+    club.squad.push(pid);
   }
+  saveClubs();
   window.loadTeam();
 };
 
 window.lockSquad = function() {
-  if (S.squad.length !== 11) { toast('Pick exactly 11 players'); return; }
-  S.locked = true;
-  localStorage.setItem('m_squad', JSON.stringify(S.squad));
+  const club = getActiveClub();
+  if (!club) return;
+  if (club.squad.length !== 11) { toast('Pick exactly 11 players'); return; }
+  club.locked = true;
+  saveClubs();
   const {db,ref,update} = window._db;
-  update(ref(db,`matched/clubs/${S.code}/members/${S.uid}`), {squad: S.squad});
+  update(ref(db,`matched/clubs/${club.code}/members/${S.uid}`), {squad: club.squad});
   showSquad();
   toast('Squad locked!');
 };
@@ -661,9 +771,11 @@ function showSelector() {
 }
 
 function showSquad() {
+  const club = getActiveClub();
+  if (!club) return;
   document.getElementById('selectorPanel').style.display = 'none';
   document.getElementById('squadPanel').style.display = 'block';
-  document.getElementById('sqGrid').innerHTML = S.squad.map(pid => {
+  document.getElementById('sqGrid').innerHTML = club.squad.map(pid => {
     const p = PLAYERS.find(x => x.id===pid);
     const s = S.stats[pid];
     let score = '0.0';
@@ -680,7 +792,24 @@ function showSquad() {
   }).join('');
 }
 
-// TABS
+// ─── BACK TO HOME from dashboard ───
+// Add back button logic - nav right shows home button on dashboard
+function updateNavRight() {
+  const active = document.querySelector('.screen.active');
+  const navRight = document.getElementById('navRight');
+  if (active && active.id === 'screen-dashboard') {
+    navRight.innerHTML = `<button onclick="goHome()" style="background:var(--w10);border:1px solid var(--w20);color:white;padding:8px 14px;border-radius:20px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">← Back</button>`;
+  } else {
+    navRight.innerHTML = '';
+  }
+}
+window.goHome = function() { renderHome(); go('screen-home'); updateNavRight(); };
+
+// Override go to update nav
+const _go = go;
+window.go = function(id) { _go(id); updateNavRight(); };
+
+// ─── TABS ───
 window.switchTab = function(tab) {
   ['squad','lb'].forEach(t => {
     document.getElementById('tab-'+t).classList.toggle('active', t===tab);
@@ -688,10 +817,11 @@ window.switchTab = function(tab) {
   });
 };
 
-// SHARE LEADERBOARD
+// ─── SHARE LEADERBOARD ───
 window.shareLeaderboard = function() {
+  const club = getActiveClub();
   const rows = document.querySelectorAll('#lbList .lb-row');
-  let txt = `🏏 ${S.clubName} — IPL 2026 Standings\n\n`;
+  let txt = `🏏 ${club ? club.name : 'Matched'} — IPL 2026 Standings\n\n`;
   rows.forEach((row,i) => {
     txt += `${i+1}. ${row.querySelector('.lb-name').textContent} — ${row.querySelector('.lb-score').textContent} pts\n`;
   });
@@ -700,20 +830,20 @@ window.shareLeaderboard = function() {
   else navigator.clipboard.writeText(txt).then(() => toast('Leaderboard copied!'));
 };
 
-// MODALS
+// ─── MODALS ───
 window.openModal = function(id) { document.getElementById(id).classList.add('active'); };
 window.closeModal = function(id) {
   document.getElementById(id).classList.remove('active');
   if (id==='modal-pin') { S.pin=''; updateDots(); }
 };
 
-// LOGO TAP → ADMIN
+// ─── LOGO TAP → ADMIN ───
 window.logoTap = function() {
   S.logoTaps++;
   if (S.logoTaps >= 5) { S.logoTaps=0; S.pin=''; updateDots(); openModal('modal-pin'); }
 };
 
-// PIN
+// ─── PIN ───
 window.pp = function(v) {
   if (v==='back') S.pin = S.pin.slice(0,-1);
   else if (v==='clear') S.pin = '';
@@ -741,7 +871,7 @@ function checkPin() {
   });
 }
 
-// ADMIN
+// ─── ADMIN ───
 window.renderAdmin = function() {
   const team = document.getElementById('admTeam').value;
   const list = team ? PLAYERS.filter(p=>p.team===team) : PLAYERS;
@@ -780,7 +910,19 @@ window.saveStats = function() {
   update(ref(db,'/'), updates).then(() => { toast('Stats saved!'); closeModal('modal-admin'); });
 };
 
-// TOAST
+// ─── RESET STATS ───
+window.confirmReset = function() {
+  if (confirm('Reset ALL player stats to zero? This cannot be undone.')) {
+    const {db,ref,remove} = window._db;
+    remove(ref(db,'matched/stats')).then(() => {
+      S.stats = {};
+      toast('All stats reset to zero!');
+      closeModal('modal-admin');
+    });
+  }
+};
+
+// ─── TOAST ───
 function toast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
