@@ -114,7 +114,9 @@ select option { background:#3d7a1e; color:white; }
 .adm-inputs { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
 .adm-iw label { font-size:10px; color:var(--w60); letter-spacing:1px; display:block; margin-bottom:4px; }
 .adm-iw input { padding:8px 10px; font-size:14px; margin-bottom:0; }
-.adm-win { display:flex; align-items:center; justify-content:space-between; margin-top:8px; }
+.adm-team-won { display:flex; align-items:center; justify-content:space-between; background:rgba(141,198,63,0.15); border:1px solid rgba(141,198,63,0.3); border-radius:10px; padding:14px 16px; margin-bottom:16px; }
+.adm-team-won-label { font-size:14px; font-weight:600; }
+.adm-team-won-sub { font-size:11px; color:var(--w60); margin-top:2px; }
 .toggle { width:44px; height:24px; background:var(--w20); border-radius:12px; cursor:pointer; position:relative; border:none; transition:background 0.2s; }
 .toggle.on { background:var(--gl); }
 .toggle::after { content:''; position:absolute; width:18px; height:18px; background:white; border-radius:50%; top:3px; left:3px; transition:left 0.2s; }
@@ -123,10 +125,6 @@ select option { background:#3d7a1e; color:white; }
 .rule-icon { font-size:24px; flex-shrink:0; }
 .rule-title { font-size:14px; font-weight:600; margin-bottom:4px; }
 .rule-desc { font-size:12px; color:var(--w60); line-height:1.6; }
-.loader { position:fixed; inset:0; background:var(--gd); background-image:repeating-linear-gradient(90deg,var(--gl) 0px,var(--gl) 32px,var(--gd) 32px,var(--gd) 64px); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:999; transition:opacity 0.5s; }
-.loader.hidden { opacity:0; pointer-events:none; }
-.loader-text { font-family:'Abril Fatface',cursive; font-size:64px; color:white; text-shadow:0 4px 24px rgba(0,0,0,0.2); }
-.loader-sub { font-size:13px; color:var(--w80); letter-spacing:5px; margin-top:12px; text-transform:uppercase; }
 .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:rgba(0,0,0,0.85); color:white; padding:12px 24px; border-radius:100px; font-size:14px; font-weight:500; transition:transform 0.3s; z-index:300; white-space:nowrap; }
 .toast.show { transform:translateX(-50%) translateY(0); }
 .footer { text-align:center; padding:24px; font-size:11px; color:var(--w60); letter-spacing:1px; }
@@ -139,6 +137,7 @@ select option { background:#3d7a1e; color:white; }
 .club-card-arrow { font-size:20px; color:var(--w60); }
 .btn-danger { background:rgba(220,50,50,0.2); color:#ff6b6b; border:1px solid rgba(220,50,50,0.4); }
 .btn-danger:hover { background:rgba(220,50,50,0.35); }
+.adm-hint { font-size:11px; color:var(--w60); text-align:center; margin-bottom:14px; line-height:1.7; padding:10px; background:var(--w10); border-radius:8px; }
 </style>
 </head>
 <body>
@@ -152,7 +151,7 @@ select option { background:#3d7a1e; color:white; }
   <button onclick="goHome()" style="background:var(--w10);border:1px solid var(--w20);color:white;padding:8px 14px;border-radius:20px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">← All Clubhouses</button>
 </nav>
 
-<!-- MY CLUBHOUSES (home screen) -->
+<!-- MY CLUBHOUSES -->
 <div class="screen" id="screen-home">
   <div class="hero" style="padding-bottom:24px">
     <h1>Matched</h1>
@@ -243,9 +242,7 @@ select option { background:#3d7a1e; color:white; }
     <button class="tab-btn" id="tab-lb" onclick="switchTab('lb')">Leaderboard</button>
   </div>
 
-  <!-- Squad Panel -->
   <div id="panel-squad" style="padding:16px">
-    <!-- Selector (before lock) -->
     <div id="selectorPanel">
       <div class="sq-counter">
         <div class="sq-cnt-txt">Players selected</div>
@@ -268,7 +265,6 @@ select option { background:#3d7a1e; color:white; }
       <div id="plList"></div>
       <button class="btn btn-primary" style="margin-top:12px" id="lockBtn" onclick="lockSquad()" disabled>Lock My Squad →</button>
     </div>
-    <!-- My Squad (after lock) -->
     <div id="squadPanel" style="display:none">
       <div style="font-size:13px;color:var(--w60);margin-bottom:12px">Your squad is locked 🔒</div>
       <div class="sq-grid" id="sqGrid"></div>
@@ -276,7 +272,6 @@ select option { background:#3d7a1e; color:white; }
     </div>
   </div>
 
-  <!-- Leaderboard Panel -->
   <div id="panel-lb" style="padding:16px;display:none">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
       <div style="font-size:13px;color:var(--w60)">Live standings</div>
@@ -328,19 +323,39 @@ select option { background:#3d7a1e; color:white; }
   <div class="modal">
     <button class="modal-close" onclick="closeModal('modal-admin')">✕</button>
     <div class="modal-title">Admin Panel</div>
-    <div class="modal-sub">Update cumulative match stats</div>
-    <label class="lbl">Filter by Team</label>
+    <div class="modal-sub">Add points after each match</div>
+
+    <label class="lbl">Select Team</label>
     <select id="admTeam" onchange="renderAdmin()">
-      <option value="">All Teams</option>
+      <option value="">— Choose a team —</option>
       <option value="CSK">CSK</option><option value="MI">MI</option><option value="RCB">RCB</option>
       <option value="KKR">KKR</option><option value="DC">DC</option><option value="PBKS">PBKS</option>
       <option value="RR">RR</option><option value="SRH">SRH</option><option value="GT">GT</option><option value="LSG">LSG</option>
     </select>
+
+    <!-- Team Won toggle — shown after team selected -->
+    <div id="admTeamWonRow" style="display:none">
+      <div class="adm-team-won">
+        <div>
+          <div class="adm-team-won-label">Did this team win?</div>
+          <div class="adm-team-won-sub">Applies +20 pts to all players entered below</div>
+        </div>
+        <button class="toggle" id="admWonToggle" onclick="this.classList.toggle('on')"></button>
+      </div>
+      <div class="adm-hint">
+        Enter stats only for players who actually played.<br>Leave others blank — they won't be counted.
+      </div>
+    </div>
+
     <div id="admList"></div>
-    <button class="btn btn-primary" style="margin-top:12px" onclick="saveStats()">Save Stats</button>
-    <div style="height:1px;background:var(--w20);margin:20px 0"></div>
-    <button class="btn btn-danger" onclick="confirmReset()">Reset All Stats to Zero</button>
-    <p style="font-size:11px;color:var(--w60);text-align:center;margin-top:8px">Clears all player stats. Cannot be undone.</p>
+
+    <div id="admSaveBtnRow" style="display:none">
+      <button class="btn btn-primary" style="margin-top:4px" onclick="addMatchPoints()">Add Match Points →</button>
+    </div>
+
+    <div style="height:1px;background:var(--w20);margin:24px 0 16px"></div>
+    <button class="btn btn-danger" onclick="confirmReset()">Reset All Points to Zero</button>
+    <p style="font-size:11px;color:var(--w60);text-align:center;margin-top:8px">Wipes all cumulative points. Cannot be undone.</p>
   </div>
 </div>
 
@@ -467,37 +482,27 @@ const PLAYERS = [
 window.PLAYERS = PLAYERS;
 
 // ─── STATE ───
-// S.clubs = [{code, name, squad:[], locked:false}]
-// S.activeCode = currently viewed clubhouse code
 const S = {
   uid: null,
   name: '',
-  clubs: [],       // all clubhouses this user belongs to
-  activeCode: '',  // currently open clubhouse
-  stats: {},
+  clubs: [],
+  activeCode: '',
+  playerPoints: {},  // matched/playerPoints — cumulative points per player id
   logoTaps: 0,
   pin: ''
 };
 
-// Helpers to get/set clubs list in localStorage
 function saveClubs() { localStorage.setItem('m_clubs', JSON.stringify(S.clubs)); }
 function loadClubsFromStorage() {
   const raw = localStorage.getItem('m_clubs');
   if (raw) { S.clubs = JSON.parse(raw); return; }
-  // Migrate old single-clubhouse format
   const oldCode = localStorage.getItem('m_code');
   const oldName = localStorage.getItem('m_club');
   const oldSquad = localStorage.getItem('m_squad');
   if (oldCode && oldName) {
-    S.clubs = [{
-      code: oldCode, name: oldName,
-      squad: oldSquad ? JSON.parse(oldSquad) : [],
-      locked: !!oldSquad
-    }];
+    S.clubs = [{code: oldCode, name: oldName, squad: oldSquad ? JSON.parse(oldSquad) : [], locked: !!oldSquad}];
     saveClubs();
-  } else {
-    S.clubs = [];
-  }
+  } else { S.clubs = []; }
 }
 function getActiveClub() { return S.clubs.find(c => c.code === S.activeCode) || null; }
 
@@ -508,8 +513,7 @@ window.addEventListener('DOMContentLoaded', () => {
   S.uid = uid;
   S.name = localStorage.getItem('m_name') || '';
   loadClubsFromStorage();
-  loadStats();
-
+  loadPlayerPoints();
   renderHome();
   go('screen-home');
 });
@@ -519,18 +523,12 @@ function go(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   window.scrollTo(0,0);
-  const showNav = ['screen-dashboard'];
-  document.getElementById('mainNav').style.display = showNav.includes(id) ? 'flex' : 'none';
+  document.getElementById('mainNav').style.display = id === 'screen-dashboard' ? 'flex' : 'none';
 }
 window.go = go;
+window.goHome = function() { renderHome(); go('screen-home'); };
 
-// ─── GO HOME ───
-window.goHome = function() {
-  renderHome();
-  go('screen-home');
-};
-
-// ─── HOME SCREEN ───
+// ─── HOME ───
 function renderHome() {
   const el = document.getElementById('myClubsList');
   if (S.clubs.length === 0) {
@@ -550,13 +548,8 @@ function renderHome() {
 }
 window.renderHome = renderHome;
 
-// ─── ENTER A CLUBHOUSE ───
-window.enterClubhouse = function(code) {
-  S.activeCode = code;
-  openDash();
-};
+window.enterClubhouse = function(code) { S.activeCode = code; openDash(); };
 
-// ─── GENERATE CODE ───
 function genCode() {
   const c = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let r = '';
@@ -564,7 +557,7 @@ function genCode() {
   return 'Matched' + r;
 }
 
-// ─── CREATE CLUBHOUSE ───
+// ─── CREATE / JOIN ───
 window.createClubhouse = function() {
   const name = document.getElementById('createName').value.trim();
   if (!name) { toast('Please enter a clubhouse name'); return; }
@@ -580,7 +573,6 @@ window.createClubhouse = function() {
   go('screen-sharecode');
 };
 
-// ─── SHARE INVITE ───
 window.shareInvite = function() {
   const club = getActiveClub();
   const txt = `Join my IPL 2026 Clubhouse on Matched!\n\nClubhouse: ${club.name}\nCode: ${club.code}\n\nhttps://playmatched.github.io\n\nNo money. No registration. Just cricket.`;
@@ -588,7 +580,6 @@ window.shareInvite = function() {
   else navigator.clipboard.writeText(txt).then(() => toast('Invite copied!'));
 };
 
-// ─── JOIN CLUBHOUSE ───
 window.joinClubhouse = function() {
   const code = document.getElementById('joinCode').value.trim();
   if (!code) { toast('Please enter a code'); return; }
@@ -610,23 +601,17 @@ window.joinClubhouse = function() {
   });
 };
 
-// ─── SAVE NAME ───
 window.saveName = function() {
   const name = document.getElementById('nameInput').value.trim();
   if (!name) { toast('Please enter your name'); return; }
   S.name = name;
   localStorage.setItem('m_name', name);
-
-  // Handle pending create
   const pendingCreate = localStorage.getItem('m_pending_create_name');
   if (pendingCreate) {
     localStorage.removeItem('m_pending_create_name');
     document.getElementById('createName').value = pendingCreate;
-    window.createClubhouse();
-    return;
+    window.createClubhouse(); return;
   }
-
-  // Handle pending join
   const pendingJoin = localStorage.getItem('m_pending_join');
   if (pendingJoin) {
     localStorage.removeItem('m_pending_join');
@@ -635,52 +620,46 @@ window.saveName = function() {
       const {db,ref,set} = window._db;
       set(ref(db, `matched/clubs/${pendingJoin}/members/${S.uid}`), {name, at: Date.now(), squad: []});
       S.activeCode = pendingJoin;
-      openDash();
-      return;
+      openDash(); return;
     }
   }
-
-  // Normal first-time name entry after create flow
   const club = getActiveClub();
   if (club) {
     const {db,ref,set} = window._db;
     set(ref(db, `matched/clubs/${club.code}/members/${S.uid}`), {name, at: Date.now(), squad: club.squad});
     openDash();
-  } else {
-    renderHome();
-    go('screen-home');
-  }
+  } else { renderHome(); go('screen-home'); }
 };
 
-// ─── OPEN DASHBOARD ───
+// ─── DASHBOARD ───
 function openDash() {
   const club = getActiveClub();
   if (!club) { go('screen-home'); return; }
   go('screen-dashboard');
   document.getElementById('dashName').textContent = club.name;
   document.getElementById('dashSub').textContent = `${S.name} · ${club.code}`;
-  // reset tab to squad
   switchTab('squad');
   if (club.locked) showSquad(); else showSelector();
   loadLb();
 }
 window.openDash = openDash;
 
-// ─── LOAD STATS (live, global) ───
-function loadStats() {
+// ─── LOAD PLAYER POINTS (live, global) ───
+// matched/playerPoints/{playerId} = cumulative season points (grows with every match)
+function loadPlayerPoints() {
   const {db,ref,onValue,get} = window._db;
-  onValue(ref(db,'matched/stats'), snap => {
-    S.stats = snap.exists() ? snap.val() : {};
+  onValue(ref(db,'matched/playerPoints'), snap => {
+    S.playerPoints = snap.exists() ? snap.val() : {};
     const club = getActiveClub();
     if (club) {
       updateScore();
       if (club.locked) showSquad();
-      // Re-render leaderboard with updated stats
+      // Refresh leaderboard live
       const lbList = document.getElementById('lbList');
       if (lbList) {
-        get(ref(db,`matched/clubs/${S.activeCode}/members`)).then(snap => {
-          if (!snap.exists()) return;
-          const members = snap.val();
+        get(ref(db,`matched/clubs/${S.activeCode}/members`)).then(membSnap => {
+          if (!membSnap.exists()) return;
+          const members = membSnap.val();
           const entries = Object.entries(members)
             .map(([uid,m]) => ({uid, name:m.name, score: m.squad ? calcScore(m.squad) : 0}))
             .sort((a,b) => b.score - a.score);
@@ -701,14 +680,9 @@ function loadStats() {
 }
 
 // ─── SCORE CALC ───
+// Sums cumulative playerPoints for a squad — simple and clean
 function calcScore(ids) {
-  return ids.reduce((tot, pid) => {
-    const s = S.stats[pid];
-    if (!s) return tot;
-    const bat = s.teamRuns > 0 ? (s.runs/s.teamRuns)*100 : 0;
-    const bowl = s.totalWickets > 0 ? (s.wickets/s.totalWickets)*100 : 0;
-    return tot + Math.max(0,bat) + Math.max(0,bowl) + (s.won?20:0);
-  }, 0);
+  return ids.reduce((tot, pid) => tot + (S.playerPoints[pid] || 0), 0);
 }
 
 function updateScore() {
@@ -774,8 +748,7 @@ window.togglePl = function(pid) {
 
 window.lockSquad = function() {
   const club = getActiveClub();
-  if (!club) return;
-  if (club.squad.length !== 11) { toast('Pick exactly 11 players'); return; }
+  if (!club || club.squad.length !== 11) { toast('Pick exactly 11 players'); return; }
   club.locked = true;
   saveClubs();
   const {db,ref,update} = window._db;
@@ -796,37 +769,14 @@ function showSquad() {
   document.getElementById('squadPanel').style.display = 'block';
   document.getElementById('sqGrid').innerHTML = club.squad.map(pid => {
     const p = PLAYERS.find(x => x.id===pid);
-    const s = S.stats[pid];
-    let score = '0.0';
-    if (s) {
-      const bat = s.teamRuns>0 ? (s.runs/s.teamRuns)*100 : 0;
-      const bowl = s.totalWickets>0 ? (s.wickets/s.totalWickets)*100 : 0;
-      score = (Math.max(0,bat)+Math.max(0,bowl)+(s.won?20:0)).toFixed(1);
-    }
+    const pts = (S.playerPoints[pid] || 0).toFixed(1);
     return `<div class="sq-card">
       <div class="sq-card-name">${p?p.name:pid}</div>
       <div class="sq-card-team">${p?p.team:''}</div>
-      <div class="sq-card-pts">${score}</div>
+      <div class="sq-card-pts">${pts}</div>
     </div>`;
   }).join('');
 }
-
-// ─── BACK TO HOME from dashboard ───
-// Add back button logic - nav right shows home button on dashboard
-function updateNavRight() {
-  const active = document.querySelector('.screen.active');
-  const navRight = document.getElementById('navRight');
-  if (active && active.id === 'screen-dashboard') {
-    navRight.innerHTML = `<button onclick="goHome()" style="background:var(--w10);border:1px solid var(--w20);color:white;padding:8px 14px;border-radius:20px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">← Back</button>`;
-  } else {
-    navRight.innerHTML = '';
-  }
-}
-window.goHome = function() { renderHome(); go('screen-home'); updateNavRight(); };
-
-// Override go to update nav
-const _go = go;
-window.go = function(id) { _go(id); updateNavRight(); };
 
 // ─── TABS ───
 window.switchTab = function(tab) {
@@ -836,7 +786,7 @@ window.switchTab = function(tab) {
   });
 };
 
-// ─── SHARE LEADERBOARD ───
+// ─── SHARE ───
 window.shareLeaderboard = function() {
   const club = getActiveClub();
   const rows = document.querySelectorAll('#lbList .lb-row');
@@ -856,10 +806,18 @@ window.closeModal = function(id) {
   if (id==='modal-pin') { S.pin=''; updateDots(); }
 };
 
-// ─── LOGO TAP → ADMIN ───
+// ─── LOGO TAP ───
 window.logoTap = function() {
   S.logoTaps++;
-  if (S.logoTaps >= 5) { S.logoTaps=0; S.pin=''; updateDots(); openModal('modal-pin'); }
+  if (S.logoTaps >= 5) {
+    S.logoTaps=0; S.pin=''; updateDots();
+    // Reset admin panel state
+    document.getElementById('admTeam').value = '';
+    document.getElementById('admList').innerHTML = '';
+    document.getElementById('admTeamWonRow').style.display = 'none';
+    document.getElementById('admSaveBtnRow').style.display = 'none';
+    openModal('modal-pin');
+  }
 };
 
 // ─── PIN ───
@@ -881,7 +839,6 @@ function checkPin() {
     const correct = snap.exists() ? String(snap.val()) : '123456';
     if (S.pin===correct) {
       closeModal('modal-pin');
-      renderAdmin();
       openModal('modal-admin');
     } else {
       toast('Wrong PIN');
@@ -890,52 +847,90 @@ function checkPin() {
   });
 }
 
-// ─── ADMIN ───
+// ─── ADMIN: RENDER ───
+// Shows players for selected team, all fields blank (ready for this match's stats)
 window.renderAdmin = function() {
   const team = document.getElementById('admTeam').value;
-  const list = team ? PLAYERS.filter(p=>p.team===team) : PLAYERS;
-  document.getElementById('admList').innerHTML = list.map(p => {
-    const s = S.stats[p.id] || {};
-    return `<div class="adm-pl">
+  const wonRow = document.getElementById('admTeamWonRow');
+  const saveBtnRow = document.getElementById('admSaveBtnRow');
+
+  if (!team) {
+    document.getElementById('admList').innerHTML = '';
+    wonRow.style.display = 'none';
+    saveBtnRow.style.display = 'none';
+    return;
+  }
+
+  document.getElementById('admWonToggle').classList.remove('on');
+  wonRow.style.display = 'block';
+  saveBtnRow.style.display = 'block';
+
+  const list = PLAYERS.filter(p => p.team === team);
+  document.getElementById('admList').innerHTML = list.map(p => `
+    <div class="adm-pl">
       <div class="adm-pl-name">${p.name} <span style="color:var(--w60);font-size:11px">${p.team} · ${p.role}</span></div>
       <div class="adm-inputs">
-        <div class="adm-iw"><label>Runs</label><input type="number" id="ar_${p.id}" value="${s.runs||0}" min="0"></div>
-        <div class="adm-iw"><label>Team Runs</label><input type="number" id="atr_${p.id}" value="${s.teamRuns||0}" min="0"></div>
-        <div class="adm-iw"><label>Wickets</label><input type="number" id="aw_${p.id}" value="${s.wickets||0}" min="0"></div>
-        <div class="adm-iw"><label>Total Wkts</label><input type="number" id="atw_${p.id}" value="${s.totalWickets||0}" min="0"></div>
+        <div class="adm-iw"><label>Runs Scored</label><input type="number" id="ar_${p.id}" placeholder="0" min="0"></div>
+        <div class="adm-iw"><label>Team Total Runs</label><input type="number" id="atr_${p.id}" placeholder="0" min="0"></div>
+        <div class="adm-iw"><label>Wickets Taken</label><input type="number" id="aw_${p.id}" placeholder="0" min="0"></div>
+        <div class="adm-iw"><label>Total Wkts Fell</label><input type="number" id="atw_${p.id}" placeholder="0" min="0"></div>
       </div>
-      <div class="adm-win">
-        <span style="font-size:13px;color:var(--w60)">Team Won?</span>
-        <button class="toggle ${s.won?'on':''}" id="awn_${p.id}" onclick="this.classList.toggle('on')"></button>
-      </div>
-    </div>`;
-  }).join('');
+    </div>`).join('');
 };
 
-window.saveStats = function() {
+// ─── ADMIN: ADD MATCH POINTS ───
+// Calculates points for THIS match only and ADDS to existing cumulative playerPoints
+window.addMatchPoints = function() {
   const team = document.getElementById('admTeam').value;
-  const list = team ? PLAYERS.filter(p=>p.team===team) : PLAYERS;
-  const updates = {};
-  list.forEach(p => {
-    updates[`matched/stats/${p.id}`] = {
-      runs: parseInt(document.getElementById('ar_'+p.id)?.value)||0,
-      teamRuns: parseInt(document.getElementById('atr_'+p.id)?.value)||0,
-      wickets: parseInt(document.getElementById('aw_'+p.id)?.value)||0,
-      totalWickets: parseInt(document.getElementById('atw_'+p.id)?.value)||0,
-      won: document.getElementById('awn_'+p.id)?.classList.contains('on')||false
-    };
+  if (!team) { toast('Please select a team'); return; }
+
+  const teamWon = document.getElementById('admWonToggle').classList.contains('on');
+  const list = PLAYERS.filter(p => p.team === team);
+  const {db,ref,get,update} = window._db;
+
+  get(ref(db,'matched/playerPoints')).then(snap => {
+    const current = snap.exists() ? snap.val() : {};
+    const updates = {};
+
+    list.forEach(p => {
+      const runs        = parseInt(document.getElementById('ar_'+p.id)?.value)  || 0;
+      const teamRuns    = parseInt(document.getElementById('atr_'+p.id)?.value) || 0;
+      const wickets     = parseInt(document.getElementById('aw_'+p.id)?.value)  || 0;
+      const totalWkts   = parseInt(document.getElementById('atw_'+p.id)?.value) || 0;
+
+      const didBat  = runs > 0 && teamRuns > 0;
+      const didBowl = wickets > 0 && totalWkts > 0;
+
+      // Skip players who neither batted, bowled, nor are on winning team
+      if (!didBat && !didBowl && !teamWon) return;
+
+      const bat      = didBat  ? (runs / teamRuns) * 100 : 0;
+      const bowl     = didBowl ? (wickets / totalWkts) * 100 : 0;
+      const winBonus = teamWon ? 20 : 0;
+      const matchPts = Math.max(0, bat) + Math.max(0, bowl) + winBonus;
+
+      updates[`matched/playerPoints/${p.id}`] = (current[p.id] || 0) + matchPts;
+    });
+
+    if (Object.keys(updates).length === 0) {
+      toast('No stats entered. Nothing to add.');
+      return;
+    }
+
+    update(ref(db,'/'), updates).then(() => {
+      toast('Match points added!');
+      closeModal('modal-admin');
+    });
   });
-  const {db,ref,update} = window._db;
-  update(ref(db,'/'), updates).then(() => { toast('Stats saved!'); closeModal('modal-admin'); });
 };
 
-// ─── RESET STATS ───
+// ─── RESET ALL POINTS ───
 window.confirmReset = function() {
-  if (confirm('Reset ALL player stats to zero? This cannot be undone.')) {
+  if (confirm('Reset ALL cumulative points to zero? This cannot be undone.')) {
     const {db,ref,remove} = window._db;
-    remove(ref(db,'matched/stats')).then(() => {
-      S.stats = {};
-      toast('All stats reset to zero!');
+    remove(ref(db,'matched/playerPoints')).then(() => {
+      S.playerPoints = {};
+      toast('All points reset to zero!');
       closeModal('modal-admin');
     });
   }
